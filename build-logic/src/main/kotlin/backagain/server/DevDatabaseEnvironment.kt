@@ -1,0 +1,30 @@
+package backagain.server
+
+/**
+ * The switches the server application reads its database configuration from.
+ *
+ * These names are a contract between the application's `main()`, the `run` task that defaults them,
+ * and the fat-jar smoke test — declared once so a project renaming its prefix can't miss one.
+ */
+object DevDatabaseEnvironment {
+
+    /** Selects a dev database; any other value means a real Postgres from `POSTGRES_*`. */
+    const val MODE: String = "BACKAGAIN_DEV_DB"
+
+    /** Where a persistent dev cluster keeps its data. */
+    const val DIRECTORY: String = "BACKAGAIN_DEV_DB_DIR"
+
+    /** Names the `DevScenarios` entry a brand-new cluster is seeded with. */
+    const val SCENARIO: String = "BACKAGAIN_DEV_SCENARIO"
+
+    /** A cluster that survives restarts — the default for `run`. */
+    const val MODE_EMBEDDED: String = "embedded"
+
+    /** A cluster discarded on shutdown — what a test or a one-shot boot wants. */
+    const val MODE_EPHEMERAL: String = "ephemeral"
+
+    const val PORT: String = "PORT"
+
+    /** A real database's JDBC URL, read when no dev database is selected. */
+    const val POSTGRES_URL: String = "POSTGRES_URL"
+}

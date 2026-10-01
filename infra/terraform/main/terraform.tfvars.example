@@ -1,0 +1,4 @@
+# The deploy workflow sets these from GitHub; this file is for a plan from a laptop.
+project_id         = "your-project-id"
+image_tag          = "the-commit-sha-of-a-pushed-image"
+presenter_password = "change-me"

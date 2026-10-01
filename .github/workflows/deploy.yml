@@ -1,0 +1,109 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Deploys queue rather than cancel: a Terraform apply stopped halfway leaves a state lock behind.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  # Builds everything with no cloud credentials at all.
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      build_time: ${{ steps.stamp.outputs.build_time }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - id: stamp
+        run: echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Test, then stage the fat jar and the web bundle for Docker
+        run: ./gradlew check verifyArchitecture :app:server:smokeTestFatJar :app:server:dockerContext --no-configuration-cache
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: docker-context
+          path: app/server/build/docker
+          retention-days: 1
+
+  # The only job that can reach Google: the `production` environment is what the workload
+  # identity provider trusts, and where the presenter password secret lives.
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/backagain/server:${{ github.sha }}
+      TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
+      TF_VAR_region: ${{ vars.GCP_REGION }}
+      TF_VAR_min_instances: ${{ vars.MIN_INSTANCES || '0' }}
+      TF_VAR_domain: ${{ vars.DOMAIN }}
+      TF_VAR_image_tag: ${{ github.sha }}
+      TF_VAR_git_sha: ${{ github.sha }}
+      TF_VAR_build_time: ${{ needs.build.outputs.build_time }}
+      TF_VAR_presenter_password: ${{ secrets.PRESENTER_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: docker-context
+          path: docker-context
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Build and push the image
+        run: |
+          gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+          docker build --tag "$IMAGE" docker-context
+          docker push "$IMAGE"
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.9.8"
+          terraform_wrapper: false
+
+      - name: Apply
+        working-directory: infra/terraform/main
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="prefix=main"
+          paused=$(terraform output -raw paused)
+          # Cloud Run starts a new revision before accepting it, which needs the database, so a
+          # paused deck wakes for the deploy and pauses again after.
+          TF_VAR_paused=false terraform apply -input=false -auto-approve
+          if [ "$paused" = true ]; then
+            TF_VAR_paused=true terraform apply -input=false -auto-approve
+          fi
+
+      - name: Summary
+        working-directory: infra/terraform/main
+        run: |
+          echo "Deployed ${{ github.sha }} to $(terraform output -raw service_url)" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$(terraform output -raw paused)" = true ]; then
+            echo "The deck is paused again: it will run this build once the Pause or resume workflow resumes it." >> "$GITHUB_STEP_SUMMARY"
+          fi

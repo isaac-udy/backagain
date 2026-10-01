@@ -1,0 +1,2 @@
+project_id        = "your-project-id"
+state_bucket_name = "your-project-id-terraform-state"

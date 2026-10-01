@@ -1,0 +1,50 @@
+name: Verify
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gradle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      # The wasm webpack tasks can't use the configuration cache, so none of this does.
+      - name: Tests, architecture rules, and a boot of the fat jar
+        run: ./gradlew check verifyArchitecture :app:server:smokeTestFatJar --no-configuration-cache
+
+      - name: Web bundle
+        run: ./gradlew :app:client:web:wasmJsBrowserDistribution --no-configuration-cache
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Format
+        run: terraform fmt -check -recursive infra/terraform
+
+      - name: Validate
+        run: |
+          for stack in bootstrap main; do
+            terraform -chdir=infra/terraform/$stack init -backend=false -input=false
+            terraform -chdir=infra/terraform/$stack validate
+          done

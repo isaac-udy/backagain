@@ -1,0 +1,62 @@
+name: Pause or resume
+
+on:
+  workflow_dispatch:
+    inputs:
+      state:
+        description: Paused stops the server and the database; live starts them again.
+        type: choice
+        options: [paused, live]
+
+permissions:
+  contents: read
+
+# Shares the deploy group, so the two never hold the Terraform state lock at once.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
+      TF_VAR_region: ${{ vars.GCP_REGION }}
+      TF_VAR_min_instances: ${{ vars.MIN_INSTANCES || '0' }}
+      TF_VAR_domain: ${{ vars.DOMAIN }}
+      TF_VAR_paused: ${{ inputs.state == 'paused' }}
+      TF_VAR_presenter_password: ${{ secrets.PRESENTER_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.9.8"
+          terraform_wrapper: false
+
+      - name: Apply, keeping the deployed release
+        working-directory: infra/terraform/main
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="prefix=main"
+          release=$(terraform output -json release)
+          TF_VAR_image_tag=$(jq -r .image_tag <<<"$release")
+          TF_VAR_git_sha=$(jq -r .git_sha <<<"$release")
+          TF_VAR_build_time=$(jq -r .build_time <<<"$release")
+          export TF_VAR_image_tag TF_VAR_git_sha TF_VAR_build_time
+          terraform apply -input=false -auto-approve
+
+      - name: Summary
+        working-directory: infra/terraform/main
+        run: |
+          echo "The deck is ${{ inputs.state }}: $(terraform output -raw service_url)" >> "$GITHUB_STEP_SUMMARY"

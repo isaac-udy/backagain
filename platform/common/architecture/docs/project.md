@@ -1,0 +1,128 @@
+> [!NOTE]
+> **This file is generated. Do not edit it directly.**
+> Generated from the `@Describe` annotations in `src/main/kotlin/architecture/rules/project/` and the `*.examples.md` files beside them.
+> Regenerate with `./gradlew :platform:common:architecture:updateArchitectureDocumentation`.
+
+# [Project Rules](../src/main/kotlin/architecture/rules/project/ProjectRules.kt)
+
+These rules are not tied to a Construct or a single package; they apply across every feature
+module, and the dependency injection rules across every Koin module in the project, platform
+and `:app` modules included. Several govern the process for
+[architecture exceptions](exceptions.md); the mechanism itself is documented there.
+
+##### Rules
+
+* An import must not use a wildcard; always list the explicit symbols
+    * **Why:** Wildcards hide which symbols a file depends on, break several architecture tests (which inspect import names directly), and silently pull in new names when the imported package adds members.
+* An `AsyncState` must never be constructed directly via `Loading`/`Success`/`Error`; use `AsyncState.fromSuspending`/`fromFlow` instead
+    * **Why:** Direct construction skips the exception capture, cancellation, and state-flow protocol that `AsyncState.fromSuspending`/`fromFlow` handle uniformly, silently breaking the contract the rest of the codebase relies on. Files that legitimately build AsyncState values (defining its semantics, or the server-side status pattern) opt out with `@file:ArchitectureException`.
+    * **Note:** A construction inside a `@Preview` function is sample state for a snapshot/preview, not production wiring, so it is exempt — no `@ArchitectureException` is needed. The rule still flags direct construction in any real code, including a `@Preview`'s non-preview helpers.
+* A property must not be backed by a separate `_[name]` property; the stored value is an explicit backing field (`field = …`) of the property that exposes it
+    * **Why:** A backing property is two declarations for one value: the exposed `val [name]` and a private `_[name]` that every write names. An explicit backing field is one declaration; inside the declaring class or file the compiler smart casts the property to the field's type, so a write names the property itself.
+    * **Note:** An explicit backing field is Stable from Kotlin 2.4 and needs no compiler flag. It applies to a `val` that is not `open`, not delegated, and has no custom getter, with a field type that is a subtype of the property type: `val state: StateFlow<S>` over `field = MutableStateFlow(…)`, `val items: List<T>` over `field = mutableListOf()`.
+    * **Note:** An explicit backing field cannot be reassigned. A value the class reassigns is `var [name]: T` with a `private set`.
+    * **Note:** A private value whose type is not a subtype of the exposed property's type — a `Channel` behind a `Flow` — is its own property, named for what it holds (`eventChannel`), not `_events`.
+    * **Note:** Reported by the pair: a `_[name]` property beside a `[name]` property in the same class, object, interface, or file. A `_`-prefixed property with no such sibling is not reported.
+* A package in a feature layer must name that layer only through its own package, its direct child subsystems, and its ancestors up to the layer root
+    * **Why:** A subsystem package is a boundary, not a namespace. One level inward is what gives it an interior: the parent names the subsystem, and the subsystem chooses what of itself the parent may see — the same property depth-is-privacy gives the whole taxonomy. Unlimited inward visibility would make a subtree a prefix and nothing more, so the root could name a vendor client three levels down and no boundary would exist anywhere.  Sideways is forbidden because two subsystems that name each other are one subsystem with a package split through it. Composition between them belongs to their shared ancestor, which is the package that is allowed to know both.
+    * **Note:** Upward is unrestricted: a shared payload is an ordinary domain model at the shared ancestor and a shared contract an ordinary domain interface there, and the layer's own purity rules already bound what either can do.
+    * **Note:** `server.data.storage` and `client.data.storage` are visible layer-wide within their own feature's data layer. Storage is not a subsystem — it is the Row-speaking half of the layer, and one flat persistence surface is what gives a table a single owner.
+    * **Note:** Tested over imports and over fully-qualified references in the file body, because a type named in a type position has no import to inspect. A name that resolves to no project declaration — generated code, a library — is not tested.
+    * **Note:** Keyed on the package alone. A declaration's visibility modifier says nothing about which package may name it, so `internal` and `public` neighbours are governed identically.
+* A subsystem package outside the domain layer must name the domain layer only through the matching domain subsystem package (same feature, same client or server implementation, same subsystem path), that package's direct children, and their ancestors
+    * **Why:** A subsystem in an outer layer — `feature.shop.client.ui.checkout`, `feature.shop.client.data.checkout` — may name `feature.shop.client.domain.checkout`, its direct children, and its ancestors, and nothing else in the domain layer. This keeps a subsystem's implementations next to the domain contracts they satisfy: the package that implements `feature.shop.client.domain.checkout` cannot also implement `feature.shop.client.domain.payments`. The matching package's depth follows from the contracts it satisfies rather than being chosen.
+    * **Note:** A layer-root file is unconstrained by the matching-subsystem rule: a root Repository provides root-declared contracts. The rule binds only a file that is itself in a subsystem package.
+    * **Note:** An outer subsystem with no domain twin is legal and needs no special case — the rule restricts domain imports, and a package with none has nothing to restrict.
+* An action/request type must model its variants as a `sealed interface`/`sealed class` (each variant a `data class`), not as a single type with an `enum` discriminator and nullable fields
+    * **Why:** A sealed hierarchy makes illegal field combinations unrepresentable and lets `when` exhaustiveness drive handling, so adding a variant surfaces every site that must handle it.
+    * **Note:** "An enum that should be a sealed class" can't be detected reliably by the tests.
+    * **Verification:** not automatically verifiable; enforced by review.
+* An architecture exception may only be added after discussing the exception with a human author
+    * **Verification:** not automatically verifiable; enforced by review.
+* An architecture exception is not a valid way to resolve an immediate architecture-test failure; fix the code or the rule first
+    * **Verification:** not automatically verifiable; enforced by review.
+* An architecture exception must explain why it exists and the intended resolution in a non-blank `reason` argument on the `@ArchitectureException`
+    * **Note:** The test covers `@ArchitectureException` on declarations, including file-level `@file:` annotations; `// architecture-exception:` comments in build files carry their reason inline and are out of scope.
+    * **Note:** The explanation must be the annotation's own `reason` argument — it is machine-readable, travels with the annotation, and is the natural form for a file-level `@file:ArchitectureException(reason = …)`. A KDoc comment alone does not satisfy this rule.
+* Every `@Serializable` type that participates in polymorphic serialization must pin an explicit `@SerialName`
+    * **Why:** Without a `@SerialName`, kotlinx derives the discriminator from the fully-qualified class name — so the package path silently becomes part of the serialized format, and the first package move invalidates every stored row and every persisted client state that carries one. Pinning makes the wire value an explicit, reviewable decision.  Sealed variants are the obvious case; a top-level `@Serializable` class registered for polymorphic dispatch — an Enro `NavigationKey` is exactly this — is *not* a sealed variant and slips past a rule that only checks those.
+    * **Note:** Checked per declaration, not per file: an annotation on a nested type does not pin its parent.
+    * **Note:** A derived discriminator fails *silently* wherever the decoder is tolerant: a decoder that falls back on unknown types persists the fallback on its next write.
+* A `@SerialName` on a polymorphically serialized type must encode the type that encloses it: exactly `NavigationKey.<Name>` for a navigation destination, and a value ending with the type-nesting chain from the outermost declaring type for a sealed variant
+    * **Why:** A discriminator is read far from the class that produced it — in a stored JSONB row, a captured request, a browser history entry — and a bare word is unreadable there. Three different destinations declare a sealed `Action` with a `Delete` variant, so `"Delete"` names four things and identifies none of them; `"EventCardOptionsDestination.Action.Delete"` identifies exactly one. Encoding the enclosing type is what makes a payload self-describing to whoever is holding it.  The value stays **package-free**, which is the other half of the requirement. A package path in a discriminator is what couples the wire format to where the class lives and makes moving it a migration; a type-nesting chain moves with the class, so repackaging stays free.
+    * **Note:** Only the required suffix is checked for a sealed variant, so a hierarchy pinned to a pre-move fully-qualified name for compatibility already satisfies this — the type chain is the end of an FQN.
+    * **Note:** The required chain runs from the outermost declaring type, not just the immediate sealed parent: two destinations each nesting a sealed `Action` with a `Delete` variant would otherwise share the discriminator `"Action.Delete"`, and a value two readers can claim identifies neither.
+    * **Note:** A destination is checked exactly, not by suffix: nothing durable rides on a navigation key, so there is no compatibility case that would justify a longer value.
+* A DI binding of an application class must use the constructor reference style `singleOf(::Constructor).bind(BindingType::class)`, not a lambda that constructs the class
+    * **Why:** The reference style lets Koin validate the constructor parameters against the graph at startup; a lambda hides a missing or cyclic dependency until the first injection at runtime. A lambda that passes a literal, or omits an argument that has a default, fixes a setting at the binding site, where no other binding and no test can change it.
+    * **Note:** Covers every Koin module in the project: feature dependency modules, platform modules, and the `:app` shells.
+    * **Note:** A lambda remains the form for a value the graph does not construct: a typed configuration object (`single { OrdersConfig(region = "eu") }`), a third-party client built through its own builder, or a Repository property bound under its interface (`single<GetOrders> { get<OrdersRepository>().getOrders }`). A data, value, enum, sealed, or abstract class constructed in a lambda is such a value. A lambda that declares runtime parameters (`factory { params -> … }`) is the form Koin gives that case.
+    * **Note:** Koin's constructor-reference DSL stops at 22 constructor parameters. A binding whose constructor has more than 22 parameters may use the lambda style, since no reference form exists.
+* A class a DI module registers must not give a constructor parameter a default value
+    * **Why:** Koin's constructor-reference DSL resolves every parameter from the graph; a Kotlin default expression does not make the parameter optional to Koin. `clock: Clock = Clock.System` or `timeout: Duration = 15.seconds` is satisfied only when the graph binds that type, and an unbound type fails at the first resolution of the class, which for a lazily resolved worker is the first request that needs it. A default the graph does satisfy is a value tests exercise and production never does.
+    * **Note:** A dependency is a required constructor parameter, even one production always satisfies with a standard instance (`single<Clock> { Clock.System }`). A setting fixed for every deployment is a private property or a constant of the class. A setting that varies between deployments is a field of a typed configuration object the dependency module assembles and the graph injects: a [domain model](serverdomain.md#domain-model) for a UseCase, a [configuration](serverdata.md#configuration) in the data layer.
+    * **Note:** Applies to the classes a Koin module registers by constructor reference or constructs in a binding lambda. A data, value, enum, sealed, or abstract class constructed in a lambda is a value assembled by hand and keeps its defaults, as do wire models, UI state, and ordinary functions, which nothing injects.
+    * **Note:** Koin's `verify()` treats a parameter with a default as optional and only warns when its type is unbound, so a graph-resolution test does not close this gap; this rule does.
+* A `TransactionRunner` may only be injected by a UseCase or a Repository
+    * **Why:** Opening a transaction is a statement about which writes have to land together, and only two places are positioned to make it. A [UseCase](serverdomain.md#use-case) composes several domain interfaces and is the one place that knows the whole unit of work; a [Repository](serverdata.md#repository) owns the writes it makes through its StorageClasses. Everything else is on the wrong side of that knowledge: an entry point in `server.services` would be scoping a transaction around contracts whose implementations it cannot see, and a [StorageClass](serverdata.md#storage-class) already runs inside whatever transaction its caller opened — taking the runner would let it widen a boundary it is a participant in.
+    * **Note:** A block that spans two features' writes is a UseCase by construction: a Repository may not inject a domain interface, so it cannot reach another feature's contract to put inside one.
+
+##### Guidance
+
+* An architecture exception should be temporary; revisit it periodically and remove it once the underlying issue is resolved
+
+##### Examples
+
+Example for `ProjectRules.noBackingProperties`:
+
+```kotlin
+// Good
+class CartStore {
+    val items: StateFlow<List<Item>>
+        field = MutableStateFlow(emptyList())
+
+    fun add(item: Item) {
+        items.value = items.value + item
+    }
+}
+
+// Avoid
+class CartStore {
+    private val _items = MutableStateFlow<List<Item>>(emptyList())
+    val items: StateFlow<List<Item>> get() = _items
+
+    fun add(item: Item) {
+        _items.value = _items.value + item
+    }
+}
+```
+
+A value the class reassigns is a `var` with a `private set`; an explicit backing field cannot be reassigned:
+
+```kotlin
+// Good
+class CartStore {
+    var lastSyncedAt: Instant? = null
+        private set
+}
+
+// Avoid
+class CartStore {
+    private var _lastSyncedAt: Instant? = null
+    val lastSyncedAt: Instant? get() = _lastSyncedAt
+}
+```
+
+Example for `ProjectRules.sealedActionVariants`:
+
+```kotlin
+// Good
+sealed interface UserAction {
+    data class Rename(val id: User.Id, val newName: String) : UserAction
+    data class Delete(val id: User.Id) : UserAction
+}
+
+// Avoid
+enum class ActionType { RENAME, DELETE }
+data class UserActionRequest(val id: User.Id, val type: ActionType, val newName: String? = null)
+```

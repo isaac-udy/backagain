@@ -1,0 +1,17 @@
+*.iml
+.idea
+.DS_Store
+.kotlin/
+.gradle
+**/build/
+!src/**/build/
+local.properties
+node_modules/
+
+# Terraform: providers are downloaded per checkout; filled-in variable files hold real values
+.terraform/
+*.tfvars
+!*.tfvars.example
+
+# Coding agents: track shared skills and Claude's baseline, ignore personal/local settings
+.claude/settings.local.json
