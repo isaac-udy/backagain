@@ -1,6 +1,7 @@
 package feature.live.server.data
 
 import feature.live.DeckPosition
+import feature.live.LiveEvent
 import feature.live.PollTally
 import feature.live.Polls
 import feature.live.Question
@@ -14,6 +15,7 @@ import platform.server.postgres.tables.ReactionTotalRow
 internal fun DeckStateRow?.toDomain(): DeckState = DeckState(
     position = this?.let { DeckPosition(slideId = it.slideId, step = it.step) },
     isLive = this?.isLive ?: false,
+    deckId = this?.deckId ?: LiveEvent.DEFAULT_DECK_ID,
 )
 
 internal fun QuestionRow.toDomain(): Question = Question(

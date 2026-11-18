@@ -100,7 +100,7 @@ internal fun KmpWasmSlide() {
             horizontalArrangement = Arrangement.spacedBy(BackAgainSpacing.md),
         ) {
             ProjectCard(name = "Reglyph", detail = "Early access", logo = ProjectLogo.Reglyph, modifier = Modifier.weight(1f).fillMaxHeight())
-            ProjectCard(name = "Leegaa", detail = "16 October", logo = ProjectLogo.Leegaa, modifier = Modifier.weight(1f).fillMaxHeight())
+            ProjectCard(name = "Leegaa", detail = "Live", logo = ProjectLogo.Leegaa, modifier = Modifier.weight(1f).fillMaxHeight())
         }
     }
     SlideFrame(title = "*Two* ways to draw a web UI") {
@@ -253,8 +253,7 @@ internal fun VoteClientSlide() {
         BesidePoints(
             points = listOf(
                 "*Ktor* client" to "JVM, Android, iOS and the browser",
-                "Any client can call it" to "curl, JavaScript, Swift…",
-                "You can see it" to "In your network tab",
+                "Standard *HTTP* request" to "Inspectable in browser developer tools",
             ),
             firstStep = 0,
         ) {

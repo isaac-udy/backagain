@@ -12,7 +12,6 @@ import feature.deck.client.domain.FlowOfIsStage
 import feature.deck.client.domain.FlowOfSlidesFromHistory
 import feature.deck.client.domain.GetStartAddress
 import feature.deck.client.domain.ShowSlideAddress
-import feature.deck.client.domain.Talk
 import feature.live.DeckPosition
 import feature.live.Reaction
 import feature.live.client.domain.FlowOfIsPresenter
@@ -39,9 +38,9 @@ class DeckViewModel(
 
     private val navigation by navigationHandle<DeckDestination>()
     private val jobManager = JobManager(viewModelScope)
-    private val deck = Talk.deck
-
     val state: ViewModelState<DeckState> = viewModelState(DeckState())
+
+    private val deck get() = state.value.deck
 
     init {
         viewModelScope.launch {

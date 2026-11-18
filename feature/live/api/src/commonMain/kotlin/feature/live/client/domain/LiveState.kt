@@ -1,6 +1,7 @@
 package feature.live.client.domain
 
 import feature.live.DeckPosition
+import feature.live.LiveEvent
 import feature.live.PollTally
 import feature.live.Question
 import feature.live.Reaction
@@ -11,6 +12,7 @@ data class LiveState(
     val connection: LiveConnection,
     val position: DeckPosition?,
     val isLive: Boolean,
+    val deckId: String,
     /** The questions on screen, newest first. */
     val questions: List<Question>,
     val tallies: Map<String, PollTally>,
@@ -25,6 +27,7 @@ data class LiveState(
             connection = LiveConnection.Connecting,
             position = null,
             isLive = false,
+            deckId = LiveEvent.DEFAULT_DECK_ID,
             questions = emptyList(),
             tallies = emptyMap(),
             reactionTotals = emptyMap(),

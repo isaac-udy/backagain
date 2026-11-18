@@ -24,6 +24,7 @@ internal class GetLiveSnapshotImpl(
         return LiveEvent.Snapshot(
             position = deck.position,
             isLive = deck.isLive,
+            deckId = deck.deckId,
             questions = getQuestionsOnScreen(limit = questionsShown),
             tallies = getPollTallies(),
             reactionTotals = getReactionTotals(),

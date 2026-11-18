@@ -23,7 +23,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import feature.deck.client.domain.Slide
-import feature.deck.client.domain.Talk
 import feature.live.Question
 import platform.design.BackAgainShapes
 import platform.design.BackAgainSpacing
@@ -46,7 +45,7 @@ internal fun PresenterConsole(
 ) {
     val colors = BackAgainTheme.colors
     val slide = state.slide
-    val upNext = Talk.deck.slides.getOrNull(state.slideNumber)
+    val upNext = state.deck.slides.getOrNull(state.slideNumber)
     Column(
         modifier = Modifier
             .fillMaxSize()

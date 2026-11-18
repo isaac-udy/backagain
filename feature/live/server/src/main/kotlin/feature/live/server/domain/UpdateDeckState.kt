@@ -8,5 +8,6 @@ fun interface UpdateDeckState {
     sealed interface Update {
         data class MoveTo(val position: DeckPosition) : Update
         data class SetLive(val isLive: Boolean) : Update
+        data class SelectDeck(val deckId: String) : Update
     }
 }

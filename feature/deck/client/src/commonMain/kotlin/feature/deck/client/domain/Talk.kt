@@ -1,15 +1,21 @@
 package feature.deck.client.domain
 
+import feature.live.LiveEvent
 import feature.live.Polls
 
-/** The talk: every slide in order, with the presenter's notes. The visuals live in `client.ui.content`. */
+/**
+ * The talk: every slide in order, with the presenter's notes, and the shorter cuts of it. The
+ * visuals live in `client.ui.content`.
+ */
 object Talk {
     /** Where the audience joins; shown on the cover, hook and closing slides. */
     const val ADDRESS: String = "backagain.isaacudy.com"
 
     const val REPOSITORY: String = "github.com/isaac-udy/backagain"
 
-    val deck: Deck = Deck(
+    val full: Deck = Deck(
+        id = LiveEvent.DEFAULT_DECK_ID,
+        name = "Full",
         slides = listOf(
             // Section 1: hook, join and who I am (2:30)
             Slide(
@@ -75,7 +81,7 @@ object Talk {
                 id = "vote-client",
                 title = "Sending the vote",
                 kind = Slide.Kind.Content,
-                steps = 2,
+                steps = 1,
             ),
 
             // Section 4: stop 2, the contract (3:30)
@@ -207,4 +213,23 @@ object Talk {
             ),
         ),
     )
+
+    /** The 15-minute talk: the vote's round trip is mostly intact; the KMP intro, Google Cloud and the verdict are cut down. */
+    val short: Deck = full.only(
+        id = "short",
+        name = "Short",
+        slideIds = setOf(
+            "cover", "hook", "poll-open",
+            "kmp-how",
+            "map-browser", "vote", "browser-composable", "vote-client",
+            "map-contract", "contract-class", "contract-refactor",
+            "map-backend", "server-route", "server-store",
+            "map-back", "listen-notify", "flow-server", "flow-client", "reveal",
+            "map-gcp", "cloudrun-what",
+            "verdict-advantages", "verdict-disadvantages", "thanks",
+        ),
+    )
+
+    /** By id, in the order settings cycles through them. */
+    val decks: Map<String, Deck> = listOf(full, short).associateBy { it.id }
 }

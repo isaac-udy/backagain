@@ -8,6 +8,7 @@ internal fun LiveState.applying(event: LiveEvent): LiveState = when (event) {
         connection = LiveConnection.Connected,
         position = event.position,
         isLive = event.isLive,
+        deckId = event.deckId,
         questions = event.questions,
         tallies = event.tallies.associateBy { it.pollId },
         reactionTotals = event.reactionTotals,
@@ -17,6 +18,7 @@ internal fun LiveState.applying(event: LiveEvent): LiveState = when (event) {
     )
     is LiveEvent.PositionChanged -> copy(position = event.position)
     is LiveEvent.LiveChanged -> copy(isLive = event.isLive)
+    is LiveEvent.DeckChanged -> copy(deckId = event.deckId)
     is LiveEvent.QuestionAsked -> copy(
         questions = (listOf(event.question) + questions.filterNot { it.id == event.question.id }).take(QUESTIONS_KEPT),
     )

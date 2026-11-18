@@ -81,5 +81,14 @@ class LiveStateApplyingTest {
         assertEquals(mapOf(Reaction.Applause to 3L, Reaction.Rocket to 2L), state.reactionTotals)
     }
 
+    @Test
+    fun `a deck change replaces the deck id`() {
+        val state = LiveState.Initial
+            .applying(snapshot)
+            .applying(LiveEvent.DeckChanged("short"))
+
+        assertEquals("short", state.deckId)
+    }
+
     private fun question(id: String) = Question(id = id, text = "question $id", askedAt = Instant.fromEpochSeconds(0))
 }

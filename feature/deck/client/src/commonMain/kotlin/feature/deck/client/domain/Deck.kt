@@ -2,8 +2,13 @@ package feature.deck.client.domain
 
 import feature.live.DeckPosition
 
-/** The slides in order, and how "next" and "previous" move through them and their steps. */
+/**
+ * The slides in order, and how "next" and "previous" move through them and their steps. [id] is
+ * what the presenter's choice of deck is stored as; [name] is how settings label it.
+ */
 data class Deck(
+    val id: String,
+    val name: String,
     val slides: List<Slide>,
 ) {
     val first: DeckPosition get() = DeckPosition(slideId = slides.first().id, step = 0)
@@ -16,6 +21,13 @@ data class Deck(
     fun resolve(position: DeckPosition?): DeckPosition {
         val slide = position?.let { slide(it.slideId) } ?: return first
         return position.copy(step = position.step.coerceIn(0, slide.steps))
+    }
+
+    /** A deck of just the slides named in [slideIds], in this deck's order. Every id must name a slide in this deck. */
+    fun only(id: String, name: String, slideIds: Set<String>): Deck {
+        val missing = slideIds - slides.map { it.id }.toSet()
+        require(missing.isEmpty()) { "Deck '$id' names slides that '${this.id}' does not contain: $missing" }
+        return Deck(id = id, name = name, slides = slides.filter { it.id in slideIds })
     }
 
     fun next(position: DeckPosition): DeckPosition? {
