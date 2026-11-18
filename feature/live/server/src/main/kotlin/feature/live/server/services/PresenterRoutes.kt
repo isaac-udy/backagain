@@ -66,6 +66,13 @@ internal class PresenterRoutes(
             call.respond(HttpStatusCode.NoContent)
         }
 
+        post<PresenterApi.Deck> {
+            call.requirePresenter()
+            val request = call.receive<PresenterApi.SelectDeckRequest>()
+            updatePresentation(UpdateDeckState.Update.SelectDeck(request.deckId))
+            call.respond(HttpStatusCode.NoContent)
+        }
+
         post<PresenterApi.Reset> {
             call.requirePresenter()
             resetAudience()

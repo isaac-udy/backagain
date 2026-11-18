@@ -16,6 +16,8 @@ sealed interface LiveEvent {
     data class Snapshot(
         val position: DeckPosition?,
         val isLive: Boolean,
+        /** Which version of the talk the presenter has chosen; each client maps it to its slides. */
+        val deckId: String = DEFAULT_DECK_ID,
         /** The questions on screen, newest first. */
         val questions: List<Question>,
         val tallies: List<PollTally>,
@@ -32,6 +34,10 @@ sealed interface LiveEvent {
     @Serializable
     @SerialName("LiveEvent.LiveChanged")
     data class LiveChanged(val isLive: Boolean) : LiveEvent
+
+    @Serializable
+    @SerialName("LiveEvent.DeckChanged")
+    data class DeckChanged(val deckId: String) : LiveEvent
 
     @Serializable
     @SerialName("LiveEvent.QuestionAsked")
@@ -60,4 +66,9 @@ sealed interface LiveEvent {
     @Serializable
     @SerialName("LiveEvent.RequestsServedChanged")
     data class RequestsServedChanged(val requestsServed: Long) : LiveEvent
+
+    companion object {
+        /** The deck the server reports until a presenter chooses another. */
+        const val DEFAULT_DECK_ID: String = "full"
+    }
 }

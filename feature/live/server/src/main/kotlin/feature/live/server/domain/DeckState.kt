@@ -6,4 +6,5 @@ import feature.live.DeckPosition
 data class DeckState(
     val position: DeckPosition?,
     val isLive: Boolean,
+    val deckId: String,
 )

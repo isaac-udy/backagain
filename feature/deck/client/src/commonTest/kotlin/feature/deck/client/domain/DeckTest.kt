@@ -3,11 +3,14 @@ package feature.deck.client.domain
 import feature.live.DeckPosition
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 class DeckTest {
 
     private val deck = Deck(
+        id = "test",
+        name = "Test",
         slides = listOf(
             Slide(id = "a", title = "A", kind = Slide.Kind.Content),
             Slide(id = "b", title = "B", kind = Slide.Kind.Content, steps = 2),
@@ -36,5 +39,18 @@ class DeckTest {
         assertEquals(DeckPosition("a", 0), deck.resolve(null))
         assertEquals(DeckPosition("a", 0), deck.resolve(DeckPosition("removed-slide", 3)))
         assertEquals(DeckPosition("b", 2), deck.resolve(DeckPosition("b", 9)))
+    }
+
+    @Test
+    fun `only keeps the named slides in the deck's order`() {
+        val cut = deck.only(id = "cut", name = "Cut", slideIds = setOf("c", "a"))
+        assertEquals(listOf("a", "c"), cut.slides.map { it.id })
+    }
+
+    @Test
+    fun `only rejects a slide this deck does not contain`() {
+        assertFailsWith<IllegalArgumentException> {
+            deck.only(id = "cut", name = "Cut", slideIds = setOf("a", "removed-slide"))
+        }
     }
 }

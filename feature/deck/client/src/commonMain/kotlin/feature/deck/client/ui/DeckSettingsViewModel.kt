@@ -12,6 +12,7 @@ import dev.isaacudy.udytils.state.fromSuspending
 import dev.isaacudy.udytils.state.viewModelState
 import feature.deck.client.domain.FlowOfIsStage
 import feature.deck.client.domain.SetStage
+import feature.deck.client.domain.Talk
 import feature.live.client.domain.FlowOfIsPresenter
 import feature.live.client.domain.FlowOfLiveState
 import feature.live.client.domain.ResetAudience
@@ -39,7 +40,7 @@ class DeckSettingsViewModel(
             flowOfIsPresenter().collect { isPresenter -> state.update { copy(isPresenter = isPresenter) } }
         }
         viewModelScope.launch {
-            flowOfLiveState().collect { live -> state.update { copy(isLive = live.isLive) } }
+            flowOfLiveState().collect { live -> state.update { copy(isLive = live.isLive, deck = Talk.decks[live.deckId] ?: Talk.full) } }
         }
         viewModelScope.launch {
             flowOfIsStage().collect { isStage -> state.update { copy(isStage = isStage) } }
@@ -55,6 +56,15 @@ class DeckSettingsViewModel(
         val isLive = state.value.isLive
         jobManager.launchReplacing(SET_LIVE) {
             runCatching { updatePresentation.setLive(!isLive) }
+        }
+    }
+
+    /** Switches every follower too. When the current slide is not in the new deck, everyone sees the new deck's first slide. */
+    fun onSwitchDeck() {
+        val decks = Talk.decks.values.toList()
+        val next = decks[(decks.indexOf(state.value.deck) + 1) % decks.size]
+        jobManager.launchReplacing(SELECT_DECK) {
+            runCatching { updatePresentation.selectDeck(next.id) }
         }
     }
 
@@ -88,6 +98,7 @@ class DeckSettingsViewModel(
 
     private companion object {
         const val SET_LIVE = "setLive"
+        const val SELECT_DECK = "selectDeck"
         const val RESET = "reset"
     }
 }

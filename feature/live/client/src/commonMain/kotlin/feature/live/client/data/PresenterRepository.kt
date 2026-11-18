@@ -62,6 +62,10 @@ internal class PresenterRepository(
                     authorised()
                     setBody(PresenterApi.SetLiveRequest(update.isLive))
                 }
+                is UpdatePresentation.Update.SelectDeck -> httpClient.post(PresenterApi.Deck()) {
+                    authorised()
+                    setBody(PresenterApi.SelectDeckRequest(update.deckId))
+                }
             }
         }
     }

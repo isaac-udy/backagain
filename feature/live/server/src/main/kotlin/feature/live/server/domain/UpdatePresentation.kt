@@ -2,7 +2,7 @@ package feature.live.server.domain
 
 import feature.live.LiveEvent
 
-/** Moves the deck or starts and ends the live session, and tells every follower. */
+/** Moves the deck, chooses which deck, or starts and ends the live session, and tells every follower. */
 fun interface UpdatePresentation {
     suspend operator fun invoke(update: UpdateDeckState.Update)
 }
@@ -17,6 +17,7 @@ internal class UpdatePresentationImpl(
         val event = when (update) {
             is UpdateDeckState.Update.MoveTo -> LiveEvent.PositionChanged(update.position)
             is UpdateDeckState.Update.SetLive -> LiveEvent.LiveChanged(state.isLive)
+            is UpdateDeckState.Update.SelectDeck -> LiveEvent.DeckChanged(state.deckId)
         }
         // "Requests served during this talk" counts from the moment it goes live.
         if (update is UpdateDeckState.Update.SetLive && state.isLive) restartRequestCount()

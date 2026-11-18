@@ -20,6 +20,11 @@ object PresenterApi {
     @Resource("/api/presenter/live")
     class Live
 
+    /** POST a [SelectDeckRequest] to choose which version of the talk everyone sees. */
+    @Serializable
+    @Resource("/api/presenter/deck")
+    class Deck
+
     /**
      * POST to clear what the audience left behind: votes, questions and reactions. For between
      * talks; every follower gets a fresh snapshot.
@@ -36,4 +41,7 @@ object PresenterApi {
 
     @Serializable
     data class SetLiveRequest(val isLive: Boolean)
+
+    @Serializable
+    data class SelectDeckRequest(val deckId: String)
 }

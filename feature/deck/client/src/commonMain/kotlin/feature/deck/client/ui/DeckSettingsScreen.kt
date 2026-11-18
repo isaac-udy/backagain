@@ -33,6 +33,7 @@ val deckSettingsDestination: NavigationDestinationProvider<DeckSettingsDestinati
             state = state,
             onToggleStage = viewModel::onToggleStage,
             onToggleLive = viewModel::onToggleLive,
+            onSwitchDeck = viewModel::onSwitchDeck,
             onResetAudience = viewModel::onResetAudience,
             onStartPresenting = viewModel::onStartPresenting,
             onStopPresenting = viewModel::onStopPresenting,
@@ -46,6 +47,7 @@ internal fun DeckSettingsScreenContent(
     state: DeckSettingsState,
     onToggleStage: () -> Unit,
     onToggleLive: () -> Unit,
+    onSwitchDeck: () -> Unit,
     onResetAudience: () -> Unit,
     onStartPresenting: () -> Unit,
     onStopPresenting: () -> Unit,
@@ -91,6 +93,16 @@ internal fun DeckSettingsScreenContent(
                         BackAgainButton(
                             label = if (state.isLive) "End live" else "Go live",
                             onClick = onToggleLive,
+                            variant = BackAgainButtonVariant.Secondary,
+                        )
+                    }
+                    SettingRow(
+                        label = "Deck",
+                        detail = "${state.deck.slides.size} slides, for everyone.",
+                    ) {
+                        BackAgainButton(
+                            label = state.deck.name,
+                            onClick = onSwitchDeck,
                             variant = BackAgainButtonVariant.Secondary,
                         )
                     }
@@ -172,6 +184,7 @@ internal fun DeckSettingsScreenPreview() {
             state = DeckSettingsState(isPresenter = true, isLive = true),
             onToggleStage = {},
             onToggleLive = {},
+            onSwitchDeck = {},
             onResetAudience = {},
             onStartPresenting = {},
             onStopPresenting = {},

@@ -20,6 +20,7 @@ CREATE TABLE deck_state (
     step integer NOT NULL,
     is_live boolean NOT NULL,
     updated_at timestamp with time zone NOT NULL DEFAULT now(),
+    deck_id text NOT NULL DEFAULT 'full'::text,
     CONSTRAINT deck_state_id_check CHECK (id = 1),
     CONSTRAINT deck_state_pkey PRIMARY KEY (id)
 );

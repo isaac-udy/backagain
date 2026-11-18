@@ -10,8 +10,11 @@ fun interface UpdatePresentation {
 
     suspend fun setLive(isLive: Boolean) = invoke(Update.SetLive(isLive))
 
+    suspend fun selectDeck(deckId: String) = invoke(Update.SelectDeck(deckId))
+
     sealed interface Update {
         data class MoveTo(val position: DeckPosition) : Update
         data class SetLive(val isLive: Boolean) : Update
+        data class SelectDeck(val deckId: String) : Update
     }
 }

@@ -1,5 +1,6 @@
 package feature.live.server.data
 
+import feature.live.LiveEvent
 import feature.live.server.data.storage.DeckStateStorage
 import feature.live.server.domain.GetDeckState
 import feature.live.server.domain.UpdateDeckState
@@ -26,11 +27,13 @@ internal class DeckStateRepository(
                 slideId = current?.slideId ?: firstSlideId,
                 step = current?.step ?: 0,
                 isLive = current?.isLive ?: false,
+                deckId = current?.deckId ?: LiveEvent.DEFAULT_DECK_ID,
                 updatedAt = clock.now(),
             ).let { row ->
                 when (update) {
                     is UpdateDeckState.Update.MoveTo -> row.copy(slideId = update.position.slideId, step = update.position.step)
                     is UpdateDeckState.Update.SetLive -> row.copy(isLive = update.isLive)
+                    is UpdateDeckState.Update.SelectDeck -> row.copy(deckId = update.deckId)
                 }
             }
             storage.upsert(next)
